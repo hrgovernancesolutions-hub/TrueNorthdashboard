@@ -458,41 +458,40 @@
 
     const width = container.clientWidth || 400;
     const height = container.clientHeight || 300;
-    const margin = { top: 10, right: 10, bottom: 38, left: 40 };
+    // Horizontal layout: periods run down the left as rows, counts run
+    // left-to-right. Left margin is wider to fit month/year row labels.
+    const margin = { top: 10, right: 16, bottom: 26, left: 46 };
 
     const svg = d3.select(container).append("svg").attr("viewBox", `0 0 ${width} ${height}`);
-    const x = d3.scaleBand().domain(keys).range([margin.left, width - margin.right]).padding(0.28);
+    const y = d3.scaleBand().domain(keys).range([margin.top, height - margin.bottom]).padding(0.28);
     const totals = keys.map((k) => d3.sum(buckets.get(k)));
-    const y = d3.scaleLinear().domain([0, d3.max(totals) || 1]).nice().range([height - margin.bottom, margin.top]);
+    const x = d3.scaleLinear().domain([0, d3.max(totals) || 1]).nice().range([margin.left, width - margin.right]);
 
     svg.append("g")
-      .attr("transform", `translate(0,${height - margin.bottom})`)
-      .call(d3.axisBottom(x).tickFormat((k) => (effectiveDrillYear === null ? String(k) : MONTH_NAMES[k])))
-      .call((g) => g.selectAll("text")
-        .attr("font-size", 10).attr("fill", "#5B6478")
-        .attr("transform", "translate(-4,4) rotate(-40)")
-        .style("text-anchor", "end"))
-      .call((g) => g.select(".domain").attr("stroke", "#E3E7EF"));
-
-    svg.append("g")
-      .attr("transform", `translate(${margin.left},0)`)
-      .call(d3.axisLeft(y).ticks(5))
+      .attr("transform", `translate(0,${margin.top})`)
+      .call(d3.axisTop(x).ticks(5))
       .call((g) => g.selectAll("text").attr("font-size", 10).attr("fill", "#5B6478"))
       .call((g) => g.select(".domain").remove())
       .call((g) => g.selectAll(".tick line").attr("stroke", "#EEF1F6"));
+
+    svg.append("g")
+      .attr("transform", `translate(${margin.left},0)`)
+      .call(d3.axisLeft(y).tickFormat((k) => (effectiveDrillYear === null ? String(k) : MONTH_NAMES[k])).tickSize(0))
+      .call((g) => g.selectAll("text").attr("font-size", 10).attr("fill", "#5B6478"))
+      .call((g) => g.select(".domain").attr("stroke", "#E3E7EF"));
 
     const ctFiltered = state.contactTypes.size > 0;
 
     keys.forEach((k) => {
       const arr = buckets.get(k);
-      let yCursor = height - margin.bottom;
-      // click on empty bar column area = drill in (only from a multi-year
-      // years view; a single-year date filter is already at month level)
+      let xCursor = margin.left;
+      // click on empty row area = drill in (only from a multi-year years
+      // view; a single-year date filter is already at month level)
       const groupG = svg.append("g");
       if (effectiveDrillYear === null) {
         groupG.append("rect")
-          .attr("x", x(k)).attr("width", x.bandwidth())
-          .attr("y", margin.top).attr("height", height - margin.top - margin.bottom)
+          .attr("y", y(k)).attr("height", y.bandwidth())
+          .attr("x", margin.left).attr("width", width - margin.left - margin.right)
           .attr("fill", "transparent")
           .style("cursor", "pointer")
           .on("click", () => { barDrillYear = k; renderBarChart(computeMask()); })
@@ -501,14 +500,13 @@
       for (let ct = 0; ct < nCT + 1; ct++) {
         const v = arr[ct];
         if (!v) continue;
-        const h = y(0) - y(v);
-        yCursor -= h;
+        const w = x(v) - x(0);
         const color = ct === nCT ? "#C7CDDA" : colorForContactType(ct);
         const dim = ctFiltered && !state.contactTypes.has(ct === nCT ? -1 : ct);
         svg.append("rect")
           .attr("class", "bar-rect" + (dim ? " is-dim" : ""))
-          .attr("x", x(k)).attr("width", x.bandwidth())
-          .attr("y", yCursor).attr("height", Math.max(h, 0))
+          .attr("y", y(k)).attr("height", y.bandwidth())
+          .attr("x", xCursor).attr("width", Math.max(w, 0))
           .attr("fill", color)
           .on("click", (event) => {
             event.stopPropagation();
@@ -516,6 +514,7 @@
           })
           .append("title")
           .text(`${ct === nCT ? "(Blank)" : contactTypes[ct]} · ${effectiveDrillYear === null ? k : MONTH_NAMES[k]}: ${v.toLocaleString()}`);
+        xCursor += w;
       }
     });
 
