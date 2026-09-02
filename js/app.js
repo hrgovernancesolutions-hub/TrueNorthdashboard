@@ -28,7 +28,8 @@
     clients: null,        // null = all; otherwise Set of client dict-indices
     dateFrom: null,       // Date
     dateTo: null,         // Date
-    datePreset: "all",
+    datePreset: "year",
+    selectedYear: null,
     categories: new Set(),
     contactTypes: new Set(),
     mailboxes: new Set(),
@@ -229,20 +230,29 @@
     const toInput = document.getElementById("dateTo");
     fromInput.min = toInput.min = isoDate(MIN_DATE);
     fromInput.max = toInput.max = isoDate(MAX_DATE);
-    fromInput.value = isoDate(MIN_DATE);
-    toInput.value = isoDate(MAX_DATE);
-    state.dateFrom = MIN_DATE;
-    state.dateTo = MAX_DATE;
+
+    // Populate the "jump to year" dropdown with every year actually present in the data
+    const yearPick = document.getElementById("yearPick");
+    const firstYear = MIN_DATE.getFullYear();
+    const lastYear = MAX_DATE.getFullYear();
+    const yearOptions = [];
+    for (let y = lastYear; y >= firstYear; y--) yearOptions.push(y);
+    yearPick.innerHTML = yearOptions.map((y) => `<option value="${y}">${y}</option>`).join("");
+    yearPick.addEventListener("change", () => applyYearPreset(Number(yearPick.value)));
+
+    // Default view: current calendar year (clipped to the data's actual range)
+    applyYearPreset(CURRENT_ACTUAL_YEAR, { skipRender: true });
 
     document.getElementById("datePresets").addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-preset]");
       if (!btn) return;
-      applyDatePreset(btn.dataset.preset);
+      if (btn.dataset.preset === "year") applyYearPreset(CURRENT_ACTUAL_YEAR);
+      else applyDatePreset(btn.dataset.preset);
     });
 
     [fromInput, toInput].forEach((el) => el.addEventListener("change", () => {
       state.datePreset = "custom";
-      setActivePresetButton("custom");
+      refreshPresetButtonHighlight();
       state.dateFrom = new Date(fromInput.value + "T00:00:00");
       state.dateTo = new Date(toInput.value + "T00:00:00");
       updateDateLabel();
@@ -264,6 +274,33 @@
 
     updateClientLabel();
     updateDateLabel();
+  }
+
+  const CURRENT_ACTUAL_YEAR = new Date().getFullYear();
+
+  function applyYearPreset(year, opts = {}) {
+    state.datePreset = "year";
+    state.selectedYear = year;
+    const start = new Date(year, 0, 1);
+    const end = new Date(year, 11, 31);
+    state.dateFrom = start < MIN_DATE ? MIN_DATE : start;
+    state.dateTo = end > MAX_DATE ? MAX_DATE : end;
+    document.getElementById("dateFrom").value = isoDate(state.dateFrom);
+    document.getElementById("dateTo").value = isoDate(state.dateTo);
+    document.getElementById("yearPick").value = String(year);
+    refreshPresetButtonHighlight();
+    updateDateLabel();
+    if (!opts.skipRender) renderAll();
+  }
+
+  function refreshPresetButtonHighlight() {
+    document.querySelectorAll("#datePresets button").forEach((b) => {
+      if (b.dataset.preset === "year") {
+        b.classList.toggle("is-active", state.datePreset === "year" && state.selectedYear === CURRENT_ACTUAL_YEAR);
+      } else {
+        b.classList.toggle("is-active", state.datePreset === b.dataset.preset);
+      }
+    });
   }
 
   function setupDropdown(toggleId, panelId) {
@@ -292,7 +329,7 @@
 
   function updateClientLabel() {
     const el = document.getElementById("clientFilterValue");
-    if (state.clients === null) el.textContent = "All clients";
+    if (state.clients === null) el.textContent = "All Clients";
     else if (state.clients.size === 0) el.textContent = "None selected";
     else if (state.clients.size === 1) el.textContent = DICTS.client[[...state.clients][0]];
     else el.textContent = `${state.clients.size} clients`;
@@ -300,16 +337,9 @@
 
   function applyDatePreset(preset) {
     state.datePreset = preset;
-    setActivePresetButton(preset);
-    const custom = document.getElementById("dateCustom");
+    refreshPresetButtonHighlight();
     if (preset === "all") {
       state.dateFrom = MIN_DATE; state.dateTo = MAX_DATE;
-    } else if (preset === "12m" || preset === "6m" || preset === "2m") {
-      const months = { "12m": 12, "6m": 6, "2m": 2 }[preset];
-      state.dateTo = MAX_DATE;
-      const d = new Date(MAX_DATE);
-      d.setMonth(d.getMonth() - months);
-      state.dateFrom = d;
     }
     document.getElementById("dateFrom").value = isoDate(state.dateFrom);
     document.getElementById("dateTo").value = isoDate(state.dateTo);
@@ -317,15 +347,13 @@
     renderAll();
   }
 
-  function setActivePresetButton(preset) {
-    document.querySelectorAll("#datePresets button").forEach((b) => {
-      b.classList.toggle("is-active", b.dataset.preset === preset);
-    });
-  }
-
   function updateDateLabel() {
     const el = document.getElementById("dateFilterValue");
-    if (state.datePreset === "all") { el.textContent = "Full history"; return; }
+    if (state.datePreset === "all") { el.textContent = "Full History"; return; }
+    if (state.datePreset === "year") {
+      el.textContent = state.selectedYear === CURRENT_ACTUAL_YEAR ? "Current Year" : String(state.selectedYear);
+      return;
+    }
     el.textContent = `${shortDate(state.dateFrom)} – ${shortDate(state.dateTo)}`;
   }
 
@@ -337,7 +365,7 @@
     state.quarters.clear();
     state.solutions.clear();
     barDrillYear = null;
-    applyDatePreset("all");
+    applyYearPreset(CURRENT_ACTUAL_YEAR);
     syncClientCheckboxes();
     updateClientLabel();
     renderAll();
