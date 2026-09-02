@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TrueNorth Dashboard</title>
+<title>True North Dashboard</title>
 <link rel="stylesheet" href="css/style.css">
 <script src="assets/vendor/d3.min.js"></script>
 <script src="data/dashboard_data.js"></script>
@@ -15,7 +15,7 @@
     <img src="assets/logo.svg" alt="Company logo" class="tn-header__logo">
   </div>
   <div class="tn-header__center">
-    <h1>TrueNorth Dashboard</h1>
+    <h1>True North Dashboard</h1>
   </div>
   <div class="tn-header__side tn-header__side--right" id="lastUpdated">Data as of —</div>
 </header>
@@ -25,7 +25,7 @@
   <div class="tn-filter" id="clientFilter">
     <button class="tn-filter__toggle" id="clientFilterToggle" aria-expanded="false">
       <span class="tn-filter__label">Client</span>
-      <span class="tn-filter__value" id="clientFilterValue">All clients</span>
+      <span class="tn-filter__value" id="clientFilterValue">All Clients</span>
       <svg class="tn-filter__chevron" viewBox="0 0 10 6" width="10" height="6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
     </button>
     <div class="tn-filter__panel" id="clientFilterPanel" hidden>
@@ -41,16 +41,18 @@
   <div class="tn-filter" id="dateFilter">
     <button class="tn-filter__toggle" id="dateFilterToggle" aria-expanded="false">
       <span class="tn-filter__label">Date (Created)</span>
-      <span class="tn-filter__value" id="dateFilterValue">Full history</span>
+      <span class="tn-filter__value" id="dateFilterValue">Current Year</span>
       <svg class="tn-filter__chevron" viewBox="0 0 10 6" width="10" height="6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
     </button>
     <div class="tn-filter__panel tn-filter__panel--date" id="dateFilterPanel" hidden>
       <div class="tn-date-presets" id="datePresets">
-        <button type="button" data-preset="all" class="is-active">Full history</button>
-        <button type="button" data-preset="12m">Last 12 months</button>
-        <button type="button" data-preset="6m">Last 6 months</button>
-        <button type="button" data-preset="2m">Last 2 months</button>
+        <button type="button" data-preset="year" class="is-active">Current Year</button>
+        <button type="button" data-preset="all">Full History</button>
         <button type="button" data-preset="custom">Custom range</button>
+      </div>
+      <div class="tn-date-yearpick" id="yearPickWrap">
+        <label for="yearPick">Jump to year</label>
+        <select id="yearPick"></select>
       </div>
       <div class="tn-date-custom" id="dateCustom">
         <label>From <input type="date" id="dateFrom"></label>
@@ -96,7 +98,7 @@
   <section class="tn-panel tn-panel--treemap" aria-label="Clients">
     <div class="tn-panel__head">
       <h2>Clients</h2>
-      <div class="tn-panel__caption">Distribution of TrueNorth clients.</div>
+      <div class="tn-panel__caption">Distribution of True North clients.</div>
     </div>
     <div class="tn-panel__body" id="treemapChart"></div>
   </section>
@@ -134,7 +136,7 @@
 </main>
 
 <footer class="tn-footer">
-  This site is provided by Workforce Junction. ©2026 Workforce Junction. All rights reserved.
+  True North Dashboard &middot; recreated from Power BI &middot; counts match the original report's row-count logic
 </footer>
 
 <script src="js/app.js"></script>
