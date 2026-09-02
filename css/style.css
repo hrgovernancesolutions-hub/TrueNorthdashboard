@@ -55,7 +55,7 @@ h1, h2 { margin: 0; }
 }
 
 .tn-header__logo {
-  height: 100px;
+  height: 48px;
   width: auto;
   display: block;
 }
@@ -65,7 +65,7 @@ h1, h2 { margin: 0; }
 }
 
 .tn-header__center h1 {
-  font-size: 50px;
+  font-size: 27px;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--navy);
@@ -188,6 +188,25 @@ h1, h2 { margin: 0; }
 }
 .tn-date-presets button:hover { background: var(--accent-soft); }
 .tn-date-presets button.is-active { background: var(--accent); color: #fff; }
+
+.tn-date-yearpick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+.tn-date-yearpick select {
+  font-size: 13px;
+  padding: 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--ink);
+  flex: 1;
+}
 
 .tn-date-custom {
   display: flex;
@@ -370,6 +389,11 @@ table.tn-table td {
   border-bottom: 1px solid #EEF1F6;
 }
 table.tn-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Mailbox by Quarter is specifically requested centered; other tables (Category,
+   Solution) keep the standard right-aligned numeric convention. */
+#mailboxTable td.num,
+#mailboxTable th.num { text-align: center; }
 
 table.tn-table tbody tr { cursor: pointer; }
 table.tn-table tbody tr:hover { background: var(--accent-soft); }
