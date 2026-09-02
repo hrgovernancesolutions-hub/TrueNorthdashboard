@@ -460,7 +460,10 @@
     const height = container.clientHeight || 300;
     // Horizontal layout: periods run down the left as rows, counts run
     // left-to-right. Left margin is wider to fit month/year row labels.
-    const margin = { top: 10, right: 16, bottom: 26, left: 46 };
+    // top margin needs enough room for the axisTop tick labels, which draw
+    // ABOVE their axis line by default -- too little space here clips them
+    // off the top edge of the chart entirely.
+    const margin = { top: 22, right: 16, bottom: 26, left: 46 };
 
     const svg = d3.select(container).append("svg").attr("viewBox", `0 0 ${width} ${height}`);
     const y = d3.scaleBand().domain(keys).range([margin.top, height - margin.bottom]).padding(0.28);
