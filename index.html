@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>True North Dashboard</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="assets/vendor/d3.min.js"></script>
+<script src="data/dashboard_data.js"></script>
+</head>
+<body>
+
+<header class="tn-header">
+  <div class="tn-header__side tn-header__side--left">
+    <img src="assets/logo.svg" alt="Company logo" class="tn-header__logo">
+  </div>
+  <div class="tn-header__center">
+    <h1>True North Dashboard</h1>
+  </div>
+  <div class="tn-header__side tn-header__side--right" id="lastUpdated">Data as of —</div>
+</header>
+
+<section class="tn-filterbar" aria-label="Filters">
+
+  <div class="tn-filter" id="clientFilter">
+    <button class="tn-filter__toggle" id="clientFilterToggle" aria-expanded="false">
+      <span class="tn-filter__label">Client</span>
+      <span class="tn-filter__value" id="clientFilterValue">All clients</span>
+      <svg class="tn-filter__chevron" viewBox="0 0 10 6" width="10" height="6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+    <div class="tn-filter__panel" id="clientFilterPanel" hidden>
+      <input type="search" id="clientSearch" placeholder="Search clients…" class="tn-filter__search">
+      <div class="tn-filter__actions">
+        <button type="button" id="clientSelectAll">Select all</button>
+        <button type="button" id="clientClear">Clear</button>
+      </div>
+      <div class="tn-filter__list" id="clientList" role="listbox" aria-multiselectable="true"></div>
+    </div>
+  </div>
+
+  <div class="tn-filter" id="dateFilter">
+    <button class="tn-filter__toggle" id="dateFilterToggle" aria-expanded="false">
+      <span class="tn-filter__label">Date (Created)</span>
+      <span class="tn-filter__value" id="dateFilterValue">Full history</span>
+      <svg class="tn-filter__chevron" viewBox="0 0 10 6" width="10" height="6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+    <div class="tn-filter__panel tn-filter__panel--date" id="dateFilterPanel" hidden>
+      <div class="tn-date-presets" id="datePresets">
+        <button type="button" data-preset="all" class="is-active">Full history</button>
+        <button type="button" data-preset="12m">Last 12 months</button>
+        <button type="button" data-preset="6m">Last 6 months</button>
+        <button type="button" data-preset="2m">Last 2 months</button>
+        <button type="button" data-preset="custom">Custom range</button>
+      </div>
+      <div class="tn-date-custom" id="dateCustom">
+        <label>From <input type="date" id="dateFrom"></label>
+        <label>To <input type="date" id="dateTo"></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="tn-chips" id="activeChips" aria-live="polite"></div>
+
+  <button class="tn-clearall" id="clearAll" hidden>Clear all filters</button>
+</section>
+
+<main class="tn-grid">
+
+  <section class="tn-kpi" aria-label="Conversations">
+    <div class="tn-kpi__label">Conversations</div>
+    <div class="tn-kpi__value" id="kpiValue">0</div>
+    <div class="tn-kpi__sub" id="kpiSub">of 0 total</div>
+  </section>
+
+  <section class="tn-panel tn-panel--bar" aria-label="Contact Type over time">
+    <div class="tn-panel__head">
+      <h2>Contact Type</h2>
+      <div class="tn-panel__caption">How the Benefits Desk was contacted.</div>
+      <div class="tn-drill" id="barDrill" hidden>
+        <button id="barDrillBack">&larr; All years</button>
+        <span id="barDrillLabel"></span>
+      </div>
+    </div>
+    <div class="tn-panel__body" id="barChart"></div>
+    <div class="tn-legend" id="barLegend"></div>
+  </section>
+
+  <section class="tn-panel tn-panel--bubble" aria-label="Categories">
+    <div class="tn-panel__head">
+      <h2>Categories</h2>
+      <div class="tn-panel__caption">Distribution of conversation categories.</div>
+    </div>
+    <div class="tn-panel__body" id="bubbleChart"></div>
+  </section>
+
+  <section class="tn-panel tn-panel--treemap" aria-label="Clients">
+    <div class="tn-panel__head">
+      <h2>Clients</h2>
+      <div class="tn-panel__caption">Distribution of True North clients.</div>
+    </div>
+    <div class="tn-panel__body" id="treemapChart"></div>
+  </section>
+
+  <section class="tn-panel tn-panel--table" aria-label="Mailbox by quarter">
+    <div class="tn-panel__head">
+      <h2>Mailbox by Quarter</h2>
+      <div class="tn-panel__caption">Ticket volume by mailbox across quarters.</div>
+    </div>
+    <div class="tn-panel__body" id="mailboxTable"></div>
+  </section>
+
+  <section class="tn-panel tn-panel--table" aria-label="Categories table">
+    <div class="tn-panel__head">
+      <h2>Category</h2>
+      <div class="tn-panel__caption">Full breakdown of conversation categories.</div>
+    </div>
+    <div class="tn-panel__body">
+      <input type="search" class="tn-table-search" data-target="categoryTable" placeholder="Search categories…">
+      <div class="tn-table-scroll" id="categoryTable"></div>
+    </div>
+  </section>
+
+  <section class="tn-panel tn-panel--table" aria-label="Solution table">
+    <div class="tn-panel__head">
+      <h2>Solution</h2>
+      <div class="tn-panel__caption">Action that was taken to resolve the employee's request and/or questions.</div>
+    </div>
+    <div class="tn-panel__body">
+      <input type="search" class="tn-table-search" data-target="solutionTable" placeholder="Search solutions…">
+      <div class="tn-table-scroll" id="solutionTable"></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="tn-footer">
+  True North Dashboard &middot; recreated from Power BI &middot; counts match the original report's row-count logic
+</footer>
+
+<script src="js/app.js"></script>
+</body>
+</html>
