@@ -15,7 +15,6 @@
 
   const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const PALETTE = ["#4A8DDC","#4C5D8A","#F3C911","#DC5B57","#33AE81","#95C8F0","#DD915F","#9A64A0"];
-  const PHONE_COLOR = "#DD915F"; // explicit override in the original report (ThemeDataColor #6)
 
   let DATA = null;          // raw payload from dashboard_data.json
   let ROWS = null;          // { client:Int32Array, dateOffset, category, contactType, solution, mailbox, quarter, year, month }
@@ -252,6 +251,7 @@
 
     [fromInput, toInput].forEach((el) => el.addEventListener("change", () => {
       state.datePreset = "custom";
+      barDrillYear = null;
       refreshPresetButtonHighlight();
       state.dateFrom = new Date(fromInput.value + "T00:00:00");
       state.dateTo = new Date(toInput.value + "T00:00:00");
@@ -281,6 +281,7 @@
   function applyYearPreset(year, opts = {}) {
     state.datePreset = "year";
     state.selectedYear = year;
+    barDrillYear = null; // this filter's own year decides bar-chart granularity now
     const start = new Date(year, 0, 1);
     const end = new Date(year, 11, 31);
     state.dateFrom = start < MIN_DATE ? MIN_DATE : start;
@@ -337,6 +338,7 @@
 
   function applyDatePreset(preset) {
     state.datePreset = preset;
+    barDrillYear = null;
     refreshPresetButtonHighlight();
     if (preset === "all") {
       state.dateFrom = MIN_DATE; state.dateTo = MAX_DATE;
@@ -415,6 +417,16 @@
     const { n, contactType, year, month } = ROWS;
     const contactTypes = DICTS.contactType;
 
+    // The active date filter decides the granularity: a single-year filter
+    // (Current Year, or one specific year picked from the dropdown) shows
+    // months directly, since a "years" view of one year is just one bar.
+    // A range spanning multiple years (Full History, or a multi-year custom
+    // range) shows years, with click-to-drill into any one year's months.
+    const spanFromYear = state.dateFrom.getFullYear();
+    const spanToYear = state.dateTo.getFullYear();
+    const singleYearMode = spanFromYear === spanToYear;
+    const effectiveDrillYear = singleYearMode ? spanFromYear : barDrillYear;
+
     // aggregate: key -> [countPerContactType...]
     const buckets = new Map(); // bucketKey(number) -> Int32Array(len contactTypes+1) (last slot = blank)
     const nCT = contactTypes.length;
@@ -422,8 +434,8 @@
     for (let i = 0; i < n; i++) {
       if (!mask[i]) continue;
       let key;
-      if (barDrillYear === null) key = year[i];
-      else { if (year[i] !== barDrillYear) continue; key = month[i]; }
+      if (effectiveDrillYear === null) key = year[i];
+      else { if (year[i] !== effectiveDrillYear) continue; key = month[i]; }
       let arr = buckets.get(key);
       if (!arr) { arr = new Int32Array(nCT + 1); buckets.set(key, arr); }
       const ct = contactType[i];
@@ -432,8 +444,11 @@
 
     let keys = [...buckets.keys()].sort((a, b) => a - b);
 
-    drillUI.hidden = barDrillYear === null;
-    drillLabel.textContent = barDrillYear === null ? "" : `Year ${barDrillYear}`;
+    // The manual "back to years" control only makes sense when the drill-in
+    // was a manual click within a multi-year view -- not when a single-year
+    // date filter is forcing month view on its own.
+    drillUI.hidden = effectiveDrillYear === null || singleYearMode;
+    drillLabel.textContent = effectiveDrillYear === null ? "" : `Year ${effectiveDrillYear}`;
 
     if (keys.length === 0) {
       container.innerHTML = `<div class="tn-empty">No data for the current filters.</div>`;
@@ -452,7 +467,7 @@
 
     svg.append("g")
       .attr("transform", `translate(0,${height - margin.bottom})`)
-      .call(d3.axisBottom(x).tickFormat((k) => (barDrillYear === null ? String(k) : MONTH_NAMES[k])))
+      .call(d3.axisBottom(x).tickFormat((k) => (effectiveDrillYear === null ? String(k) : MONTH_NAMES[k])))
       .call((g) => g.selectAll("text")
         .attr("font-size", 10).attr("fill", "#5B6478")
         .attr("transform", "translate(-4,4) rotate(-40)")
@@ -471,9 +486,10 @@
     keys.forEach((k) => {
       const arr = buckets.get(k);
       let yCursor = height - margin.bottom;
-      // click on empty bar column area = drill in (only from year view)
+      // click on empty bar column area = drill in (only from a multi-year
+      // years view; a single-year date filter is already at month level)
       const groupG = svg.append("g");
-      if (barDrillYear === null) {
+      if (effectiveDrillYear === null) {
         groupG.append("rect")
           .attr("x", x(k)).attr("width", x.bandwidth())
           .attr("y", margin.top).attr("height", height - margin.top - margin.bottom)
@@ -499,7 +515,7 @@
             toggleSetFilter(state.contactTypes, ct === nCT ? -1 : ct);
           })
           .append("title")
-          .text(`${ct === nCT ? "(Blank)" : contactTypes[ct]} · ${barDrillYear === null ? k : MONTH_NAMES[k]}: ${v.toLocaleString()}`);
+          .text(`${ct === nCT ? "(Blank)" : contactTypes[ct]} · ${effectiveDrillYear === null ? k : MONTH_NAMES[k]}: ${v.toLocaleString()}`);
       }
     });
 
@@ -508,8 +524,31 @@
 
   function colorForContactType(idx) {
     const name = DICTS.contactType[idx];
-    if (name === "Phone") return PHONE_COLOR;
-    return PALETTE[idx % PALETTE.length];
+    return stableColorForName(name);
+  }
+
+  // Fixed colors for the contact types we know about today, so a given type
+  // is always the same color regardless of what other values exist in a
+  // given month's data or what order the (alphabetically-sorted) dictionary
+  // happens to put them in. Any brand-new value not in this list still gets
+  // a color, but derived from a hash of its own name -- so it's stable
+  // release-over-release even though it wasn't hand-picked.
+  const CONTACT_TYPE_COLORS = {
+    "Phone": "#DD915F",
+    "Email": "#4A8DDC",
+    "Voicemail": "#DC5B57",
+    "Email-Phone Call": "#F3C911",
+    "Scheduled Callback": "#95C8F0",
+    "Oncall": "#9A64A0",
+    "chat": "#33AE81",
+    "0": "#4C5D8A",
+  };
+
+  function stableColorForName(name) {
+    if (CONTACT_TYPE_COLORS[name]) return CONTACT_TYPE_COLORS[name];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+    return PALETTE[hash % PALETTE.length];
   }
 
   function renderBarLegend(contactTypes) {
