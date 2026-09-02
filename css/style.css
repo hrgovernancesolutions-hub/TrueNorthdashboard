@@ -55,7 +55,7 @@ h1, h2 { margin: 0; }
 }
 
 .tn-header__logo {
-  height: 100px;
+  height: 48px;
   width: auto;
   display: block;
 }
@@ -65,7 +65,7 @@ h1, h2 { margin: 0; }
 }
 
 .tn-header__center h1 {
-  font-size: 50px;
+  font-size: 27px;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--navy);
@@ -314,6 +314,7 @@ h1, h2 { margin: 0; }
   font-size: 12.5px;
   margin-bottom: 6px;
 }
+.tn-drill[hidden] { display: none; }
 .tn-drill button {
   border: none;
   background: var(--accent-soft);
