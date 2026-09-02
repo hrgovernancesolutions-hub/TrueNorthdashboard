@@ -55,7 +55,7 @@ h1, h2 { margin: 0; }
 }
 
 .tn-header__logo {
-  height: 100px;
+  height: 48px;
   width: auto;
   display: block;
 }
@@ -65,7 +65,7 @@ h1, h2 { margin: 0; }
 }
 
 .tn-header__center h1 {
-  font-size: 50px;
+  font-size: 27px;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--navy);
@@ -384,6 +384,7 @@ table.tn-table thead th {
 }
 table.tn-table thead th.is-sorted { color: var(--accent-dark); }
 table.tn-table thead th .arrow { font-size: 10px; margin-left: 3px; }
+table.tn-table thead th.num { text-align: right; }
 
 table.tn-table td {
   padding: 6px 10px;
