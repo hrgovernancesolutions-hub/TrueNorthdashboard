@@ -105,19 +105,19 @@
   // except the one named in `except` (used so a chart can show what a
   // click on it would look like against everything BUT its own dimension —
   // not required for correctness here, but keeps hooks simple).
-  function computeMask() {
+  function computeMask(excludeDim) {
     const { n, client, dateOffset, category, contactType, mailbox, quarter, solution } = ROWS;
     const mask = new Uint8Array(n);
 
     const fromOff = state.dateFrom ? Math.floor((state.dateFrom - DATE_BASE) / 86400000) : -Infinity;
     const toOff = state.dateTo ? Math.ceil((state.dateTo - DATE_BASE) / 86400000) : Infinity;
 
-    const clientSet = state.clients; // null = all
-    const catSet = state.categories.size ? state.categories : null;
-    const ctSet = state.contactTypes.size ? state.contactTypes : null;
-    const mbSet = state.mailboxes.size ? state.mailboxes : null;
-    const qSet = state.quarters.size ? state.quarters : null;
-    const solSet = state.solutions.size ? state.solutions : null;
+    const clientSet = excludeDim === "clients" ? null : state.clients; // null = all
+    const catSet = excludeDim === "categories" ? null : (state.categories.size ? state.categories : null);
+    const ctSet = excludeDim === "contactTypes" ? null : (state.contactTypes.size ? state.contactTypes : null);
+    const mbSet = excludeDim === "mailboxes" ? null : (state.mailboxes.size ? state.mailboxes : null);
+    const qSet = excludeDim === "quarters" ? null : (state.quarters.size ? state.quarters : null);
+    const solSet = excludeDim === "solutions" ? null : (state.solutions.size ? state.solutions : null);
 
     for (let i = 0; i < n; i++) {
       if (clientSet && !clientSet.has(client[i])) continue;
@@ -144,6 +144,7 @@
     const mask = computeMask();
     renderKPI(mask);
     renderChips();
+    renderClientList();
     renderBarChart(mask);
     renderBubbleChart(mask);
     renderTreemap(mask);
@@ -175,48 +176,64 @@
 
   // ---- Filter bar UI --------------------------------------------------
 
+  let availableClientIndices = []; // recomputed by renderClientList() every render
+
+  function renderClientList() {
+    const availMask = computeMask("clients"); // every other active filter, but not the client filter itself
+    const { n, client } = ROWS;
+    const avail = new Set();
+    for (let i = 0; i < n; i++) if (availMask[i]) avail.add(client[i]);
+    availableClientIndices = [...avail].sort((a, b) => DICTS.client[a].localeCompare(DICTS.client[b]));
+
+    const clientList = document.getElementById("clientList");
+    const searchInput = document.getElementById("clientSearch");
+    const query = (searchInput.value || "").trim().toLowerCase();
+
+    clientList.innerHTML = availableClientIndices.map((idx) => {
+      const name = DICTS.client[idx];
+      const checked = state.clients === null || state.clients.has(idx);
+      const hide = query && !name.toLowerCase().includes(query);
+      return `
+      <label class="tn-filter__item" data-idx="${idx}"${hide ? ' style="display:none"' : ""}>
+        <input type="checkbox" value="${idx}"${checked ? " checked" : ""}>
+        <span>${escapeHtml(name)}</span>
+      </label>`;
+    }).join("");
+
+    if (availableClientIndices.length === 0) {
+      clientList.innerHTML = `<div class="tn-empty" style="padding:16px 4px;">No clients have activity in the current filters.</div>`;
+    }
+  }
+
   function initFilterUI() {
     // Client dropdown
     const clientList = document.getElementById("clientList");
-    const clients = DICTS.client;
-    clientList.innerHTML = clients.map((name, idx) => `
-      <label class="tn-filter__item" data-idx="${idx}">
-        <input type="checkbox" value="${idx}">
-        <span>${escapeHtml(name)}</span>
-      </label>`).join("");
-    syncClientCheckboxes();
 
     clientList.addEventListener("change", (e) => {
       if (e.target.tagName !== "INPUT") return;
       const idx = Number(e.target.closest(".tn-filter__item").dataset.idx);
       if (state.clients === null) {
-        // switching from "all" to an explicit set: start from everything, then uncheck
-        state.clients = new Set(clients.map((_, i) => i));
+        // switching from "all" to an explicit set: start from every client
+        // currently available under the active filters, then uncheck this one
+        state.clients = new Set(availableClientIndices);
       }
       if (e.target.checked) state.clients.add(idx); else state.clients.delete(idx);
-      if (state.clients.size === clients.length) state.clients = null;
-      syncClientCheckboxes();
+      if (availableClientIndices.every((i) => state.clients.has(i))) state.clients = null;
       updateClientLabel();
       renderAll();
     });
 
-    document.getElementById("clientSearch").addEventListener("input", (e) => {
-      const q = e.target.value.trim().toLowerCase();
-      clientList.querySelectorAll(".tn-filter__item").forEach((el) => {
-        const name = el.textContent.trim().toLowerCase();
-        el.style.display = name.includes(q) ? "" : "none";
-      });
+    document.getElementById("clientSearch").addEventListener("input", () => {
+      renderClientList();
     });
 
     document.getElementById("clientSelectAll").addEventListener("click", () => {
       state.clients = null;
-      syncClientCheckboxes();
       updateClientLabel();
       renderAll();
     });
     document.getElementById("clientClear").addEventListener("click", () => {
       state.clients = new Set();
-      syncClientCheckboxes();
       updateClientLabel();
       renderAll();
     });
@@ -320,14 +337,6 @@
     document.querySelectorAll(".tn-filter__panel").forEach((p) => (p.hidden = true));
   });
 
-  function syncClientCheckboxes() {
-    document.querySelectorAll("#clientList .tn-filter__item").forEach((el) => {
-      const idx = Number(el.dataset.idx);
-      const checked = state.clients === null || state.clients.has(idx);
-      el.querySelector("input").checked = checked;
-    });
-  }
-
   function updateClientLabel() {
     const el = document.getElementById("clientFilterValue");
     if (state.clients === null) el.textContent = "All Clients";
@@ -368,7 +377,6 @@
     state.solutions.clear();
     barDrillYear = null;
     applyYearPreset(CURRENT_ACTUAL_YEAR);
-    syncClientCheckboxes();
     updateClientLabel();
     renderAll();
   }
@@ -658,7 +666,6 @@
         // Clicking the already-isolated client again clears back to "all clients".
         const isOnlyThisOne = state.clients && state.clients.size === 1 && state.clients.has(d.data.idx);
         state.clients = isOnlyThisOne ? null : new Set([d.data.idx]);
-        syncClientCheckboxes();
         updateClientLabel();
         renderAll();
       });
